@@ -1,0 +1,733 @@
+"""
+PodcastClean — Beautiful Desktop UI
+=====================================
+Run with: py -3.11 podcast_clean_ui.py
+
+First install customtkinter:
+  py -3.11 -m pip install customtkinter
+"""
+
+import os
+import sys
+import math
+import tempfile
+import threading
+import tkinter as tk
+from tkinter import filedialog, messagebox
+
+# ── Windows HiDPI fix — must run before any UI is created ──────────────────
+if sys.platform == "win32":
+    import ctypes
+    try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)  # Per-monitor DPI aware
+    except Exception:
+        try:
+            ctypes.windll.user32.SetProcessDPIAware()
+        except Exception:
+            pass
+
+import base64, io
+import warnings
+warnings.filterwarnings("ignore", message=".*Triton.*")
+warnings.filterwarnings("ignore", message=".*triton.*")
+warnings.filterwarnings("ignore", message=".*ffmpeg.*")
+import customtkinter as ctk
+from PIL import Image as PILImage
+
+ctk.set_appearance_mode("light")
+ctk.set_default_color_theme("dark-blue")
+
+# ── Profanity list ──────────────────────────────────────────────────────────
+
+CURSE_WORDS = [
+    # F-word family
+    "fuck", "fucking", "fucked", "fucker", "fucks", "fuckin", "fuckup", "fuckface",
+    "motherfuck", "motherfucker", "motherfucking", "fuckwit", "fuckhead",
+    # S-word family
+    "shit", "shitting", "shitty", "shitted", "shits", "shitstorm", "bullshit",
+    "horseshit", "dipshit", "apeshit",
+    # A-word family
+    "asshole", "asses", "asshat", "asswipe", "jackass", "dumbass", "badass",
+    "smartass", "assclown", "assface",
+    # B-word family
+    "bitch", "bitches", "bitching", "bitchy", "bitchass",
+    "bastard", "bastards",
+    # C-words
+    "cunt", "cunts",
+    "cocksucker", "cockhead", "cockwomble",
+    "crappy", "crap",
+    # D-word
+    "dickhead", "dickface", "dickwad", "dickweed",
+    "damn", "damned", "dammit", "goddamn", "goddamned", "goddammit",
+    # P-word
+    "pissed", "pissing", "pissoff", "pisshead",
+    # W-word
+    "whore", "whores", "whorehouse",
+    # Misc
+    "crotch", "douche", "douchebag", "douchebaggery",
+    "twat", "twats", "twatwaffles",
+    "wanker", "wankers", "wanking",
+    "tosser", "tossers",
+    "arsehole", "arse",
+    "bollocks", "bullocks",
+    "prick", "pricks",
+    "slag", "slags",
+    "skank", "skanky",
+    "numbnuts", "dipstick", "nincompoop",
+    # Religious / taking the lord's name in vain
+    # Note: Whisper transcribes as individual words, so single-word forms only
+    "goddamn", "goddamnit", "goddamned", "goddammit",
+    "godforsaken", "godawful",
+    "jesus", "jesuschrist", "sweetjesus", "jesusf",
+    "christ", "christsake", "chrissake",
+    "holyshit", "holycrap", "holyhell",
+    "damnit", "dammit", "sonofabitch", "sonofagun", "sonofa",
+    # Single words Whisper outputs for common oaths
+    "hell",       # standalone "what the hell", "go to hell"
+    "damned",
+    "god",        # "oh god", "swear to god", "for god's sake"
+    "lord",       # "oh lord", "lord almighty"
+    "christ",     # "oh christ"
+    "jesus",      # "jesus!", "jesus christ"
+    "goddam",
+]
+
+# ── Colors ──────────────────────────────────────────────────────────────────
+
+DARK_BG  = "#e8d8c4"
+CARD_BG  = "#faf3ea"
+CARD2_BG = "#ecdfd0"
+ACCENT   = "#8b5e3c"
+ACCENT_H = "#6e4a2e"
+GREEN    = "#4a9e6b"
+YELLOW   = "#b05e20"
+TEXT     = "#2c1a0e"
+MUTED    = "#9a7b5e"
+BORDER   = "#a07850"
+
+# ── Icons (base64 embedded PNGs) ────────────────────────────────────────────
+ICON_BLEEP = "iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAABqElEQVR4nO3bXW6DMBBGUVN1/1umL63SHyWBqoyn/s7ZQABfDxAlYwAAAAAAAAAAAAAU2vd9n30MK3qZfQBHWPzr/IsAuE77AOz+a7UOwOJfr20AFr9G2wCo0TIAu79OuwAsfq3X2QfwWeXif/6sbdu2qs/tpt0EqGDK3LQJoGJR9nczPrurFgEkL8Bs0wOoXPxH9/rUCKcHwFxTA0jddZ386vVn1sL91evao+NPeyU8PQFW37X33hRW5Rkg3KkAknZGyrmaAOEiAzj6oJcwBSID4OZwAAm7IZEJ8MTq4QsgnADCCSCcAMIJIJwAwgkgnADCCeCJ1X8gcjiA1S9EKhMgXGQAR7/fT5h6kQFwcyqAhB3xIeVcTYBwpwNYfWds72YfR5WpJ3r2xxZ/sTD+FPLV1FtA4gXvxjNAuOkBVE4B4/+n6QGMkXvxO2gRwBg1Edx7wk8OsE0AlZIX/Lt2F8J9ula7CWCRa7ULYAwRVGoZAHXaBmAK1GgbwBgiqNA6gDFEcLX2AcAYY/3/6QMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACwvDeHKoheJb976QAAAABJRU5ErkJggg=="
+ICON_MUTE  = "iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAACoUlEQVR4nO3bSY7jMBBE0XCj739l9aoBLyxxEMmc/lsbRTkzmKLLsgQAAAAAAAAAAAAAAAAAALDRdV2X9TVU8Mf6An6h+ef8tb6AWb9C8vl8PlnX3cXdBOjZ/Xev2T05rNbdyVUA3jR/5G/MsFp3NzcBWNH80df1slr3BDcBaBkt7qpmWK17iosARCtaJuYB8Nx8z9e2imkAKhTYO/MJ4FWVcJoFYLTAJ//Z8qb50f4pZBKA2QJ7L6736/vleADejtaRIs+slTWcd0KeAXaFoFrzpcNfBq08WH0X/dSBLXKj73QFIPqJ+Lquq9W86O9xVvMWEKEwPTvz6X30vMeMu18Kegb4ZTYElZsvNQIQYfd/29GozM2XEk2AXt+hjhbwHdIFoPdWUH30/5cuANKaxlVovvQQAMZjDSkngPRuB1fZ/VLiAEhzjazUfCl5ANCWPgAjO7ra7pcKBEDqa2zF5ktFArDyNwfZpA/AiecBIksfADxLHYCTj4RFlTYAbxpZKQS3Aah6Kq4m5QRYsYOrTIF0Aej9mvftY2RZpAtAy3fjuc01AhCtQDt2bPYpkGYCzD7hU/1W0AxAhCnw9vGuyiHo+mHIqhBYFbH3y6CsTX5y9BawY5qcbFrGgIQ+A6x+srfireB4AE6eKXgkrM1kAqwosuVOzDQFTNPeKuRdUE78qGOkyZGnRugzwJ3TPwyJPBFMAzDTKK/F9npdLeYTYMdOW9WM0YBGDIF5AKQ9H7+smhEtBC4CADtuAhD5JB2ZmwBIhMCCqwBIhOA0dwG4MxqMVUGyWvcUlwG4K2JvcVc3wWrdE8JdsPT8UWtnE6zW3cnlBGh5OyGirQsAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIBE/gGhPHBWpsJ/NQAAAABJRU5ErkJggg=="
+ICON_CUT   = "iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAADWUlEQVR4nO3dy5LrIAyE4c6pef9Xzlllk8rFAQla4v+2U5MY1MY3HCQAAAAAAAAAAAAAAAAAAAAAtd12fOn9fr+/+9vtdtuyTada1tmfiv4OYcj3b8WXjBR/5v9wXeoeFllARoMcaSNA9N7LaJAjJQBZxSIE8f52ffGrIZ0Crxd+XP1WxCvH8ojPwDWhHRl9fc/9gnxLLgPha0kARvdW9vJ8YQHIOIH79JmVThidtzV9BBjdi5077RePdri2x/IcwLWzfvXcDsd22QXAsZNGvGuHW/usAuDWOaO+tcOpnTYBcOqUGVfb4dLe9ABcaahLZ8z6tR0O7Q4LwMw1e4fr/aoTXmwmhETfKl6pavElo3MAqWYIKhdfKvo0cPRzo1XZzk9SNmZ0yJ/dm1d2bofiSxsDkGVFJ3cpvpR0DrCzsdnh61R8KfEksGMIuhVfWvRiyExBHh24u/N3f3+WMhNCdl4idi2+VPDdwNXF6Fx8aVMAZq0qSvfiS2Z3Aq9aUcwTii8VDYCUG4JTii8VDoCUE4KTii8VD4AUG4LTii81CIAUE4ITiy8VvQp4Z+UziA7Fl5qMAA+ritKl+FKzAEj5xelUfKlhAKS8InUrvtQ0AFJ8sToWX2ocACmuaF2LLzUPgDRfvM7Flw4IAD4jAIdrH4DZm0O73zvI1joAO2cEVdE2ANFF6xqClgFwmhXsrl0AHN8LcNYqAKuK0ykEbW5yzD7PP3U+QIsRIKJ4FV9Nj1A+AJF77okhKB2AjGH7tBCUDUDmMfukEJQMwIoTtlNCwLuBX3S/Oij1kyq7itE5BDY/E/ft/3YWofPhoMy6gb/K2AM7jgRl1g38hdOsYPeRoNS6gVc4vhfgHAJ+J3BQl8MBvxQ6ocp2fmK3bmC1Tq22vc+s7gRW7Mzq5wQ2PxNXsfgPlUNgsW6gS2fMqBoCi3UDXfbkWSseOEWzOQdw6IwImY+cM9gEQPLplFkZk06yWAVA8uqcGZHTzjLZBUDy66RRERNPs1msG/iKY2eNeLTDtT0W6waOfKZrh77ivK1lJoQgh+U5ANYp+TTQeUitptx8AIof62/XF3N891Bq3UD2/nhl1g2k+DnKrBuIHDYTQiL/D9eVezcQAAAAAAAAAAAAAAAAAAAAwJP/S/w4snL9BmMAAAAASUVORK5CYII="
+
+def _load_icon(b64, size=28):
+    img = PILImage.open(io.BytesIO(base64.b64decode(b64))).resize((size, size), PILImage.LANCZOS)
+    return ctk.CTkImage(light_image=img, dark_image=img, size=(size, size))
+
+# ── App ─────────────────────────────────────────────────────────────────────
+
+class App(ctk.CTk):
+    def __init__(self):
+        super().__init__()
+        self.title("PodcastClean")
+        self.configure(fg_color=DARK_BG)
+        self.resizable(True, True)
+
+        # Size window to fit content, centred on screen
+        self.update_idletasks()
+        sw = self.winfo_screenwidth()
+        sh = self.winfo_screenheight()
+        w = 640
+        h = min(sh - 80, 920)
+        x = (sw - w) // 2
+        y = (sh - h) // 2
+        self.geometry(f"{w}x{h}+{x}+{y}")
+        self.minsize(580, 780)
+
+        self.audio_path = None
+        self.mode_var   = tk.StringVar(value="bleep")
+        self.model_var  = tk.StringVar(value="base")
+        self.processing = False
+        self.custom_words = []
+
+        self._build()
+        threading.Thread(target=self._check_deps, daemon=True).start()
+
+    # ── Build UI ────────────────────────────────────────────────────────────
+
+    def _build(self):
+        # Simple frame — no scrolling needed
+        s = ctk.CTkFrame(self, fg_color=DARK_BG)
+        s.pack(fill="both", expand=True)
+
+        # Header
+        hdr = ctk.CTkFrame(s, fg_color="transparent")
+        hdr.pack(fill="x", padx=28, pady=(28, 0))
+
+        ctk.CTkLabel(hdr, text="  🔇 PODCASTCLEAN  ",
+                     font=ctk.CTkFont("Helvetica", 15, "bold"),
+                     text_color=ACCENT, fg_color=CARD_BG,
+                     corner_radius=4).pack(anchor="w")
+
+        ctk.CTkLabel(hdr, text="Auto Bleep",
+                     font=ctk.CTkFont("Helvetica", 42, "bold"),
+                     text_color="#2c1a0e").pack(anchor="w", pady=(6, 0))
+
+        # Drop zone
+        self.drop_card = ctk.CTkFrame(
+            s, fg_color=CARD_BG, corner_radius=10,
+            border_width=2, border_color=BORDER)
+        self.drop_card.pack(fill="x", padx=28, pady=(14, 0))
+
+        drop_inner = ctk.CTkFrame(self.drop_card, fg_color="transparent")
+        drop_inner.pack(fill="x", padx=16, pady=12)
+        drop_inner.grid_columnconfigure(1, weight=1)
+
+        self.drop_emoji = ctk.CTkLabel(drop_inner, text="🎙️",
+            font=ctk.CTkFont("Helvetica", 22))
+        self.drop_emoji.grid(row=0, column=0, padx=(0, 10))
+
+        self.drop_title = ctk.CTkLabel(drop_inner,
+            text="Click or drag & drop a podcast file",
+            font=ctk.CTkFont("Helvetica", 13, "bold"), text_color=TEXT, anchor="w")
+        self.drop_title.grid(row=0, column=1, sticky="ew")
+
+        self.drop_hint = ctk.CTkLabel(drop_inner,
+            text="MP3 · M4A · WAV · OGG · FLAC",
+            font=ctk.CTkFont("Helvetica", 11), text_color=MUTED, anchor="w")
+        self.drop_hint.grid(row=1, column=1, sticky="ew")
+
+        for w in [self.drop_card, drop_inner, self.drop_emoji, self.drop_title, self.drop_hint]:
+            w.bind("<Button-1>", lambda e: self._choose_file())
+            w.configure(cursor="hand2")
+
+        # Drag and drop support
+        self._register_drop(self.drop_card)
+        self._register_drop(drop_inner)
+        self._register_drop(self.drop_title)
+        self._register_drop(self.drop_hint)
+
+        # Options
+        opts = ctk.CTkFrame(s, fg_color=CARD_BG, corner_radius=14)
+        opts.pack(fill="x", padx=28, pady=(10, 0))
+        opts.grid_columnconfigure(0, weight=1)
+
+        # — Mode —
+        self._section(opts, "CENSORING MODE", row=0)
+        mr = ctk.CTkFrame(opts, fg_color="transparent")
+        mr.grid(row=1, column=0, sticky="ew", padx=16, pady=(8, 0))
+        mr.grid_columnconfigure((0, 1, 2), weight=1)
+
+        # Pre-load icons in both tints
+        self._ico_bleep_w = _load_icon(ICON_BLEEP, 36)
+        self._ico_mute_w  = _load_icon(ICON_MUTE,  36)
+        self._ico_cut_w   = _load_icon(ICON_CUT,   36)
+
+        # Dark tint versions for unselected state
+        def _tint_icon(b64, color=(44,26,14), size=36):
+            img = PILImage.open(io.BytesIO(base64.b64decode(b64))).convert("RGBA").resize((size,size), PILImage.LANCZOS)
+            r,g,b = color
+            pixels = img.load()
+            for y in range(img.height):
+                for x in range(img.width):
+                    pr,pg,pb,pa = pixels[x,y]
+                    pixels[x,y] = (r,g,b,pa)
+            return ctk.CTkImage(light_image=img, dark_image=img, size=(size,size))
+
+        self._ico_bleep_d = _tint_icon(ICON_BLEEP, size=36)
+        self._ico_mute_d  = _tint_icon(ICON_MUTE,  size=36)
+        self._ico_cut_d   = _tint_icon(ICON_CUT,   size=36)
+
+        def _mode_btn(parent, ico_w, ico_d, label, mode, active=False):
+            fg   = ACCENT   if active else CARD2_BG
+            hov  = ACCENT_H if active else "#d5c8b8"
+            tcol = "#ffffff" if active else "#2c1a0e"
+            ico_img = ico_w if active else ico_d
+            frame = ctk.CTkFrame(parent, fg_color=fg, corner_radius=8,
+                                  border_width=0, cursor="hand2")
+            frame.grid_columnconfigure(1, weight=1)
+            ico = ctk.CTkLabel(frame, text="", image=ico_img,
+                               fg_color="transparent", cursor="hand2",
+                               bg_color="transparent")
+            ico.grid(row=0, column=0, padx=(12, 6), pady=12)
+            lbl = ctk.CTkLabel(frame, text=label,
+                               font=ctk.CTkFont("Helvetica", 14, "bold"),
+                               fg_color="transparent", text_color=tcol,
+                               anchor="w", cursor="hand2",
+                               bg_color="transparent")
+            lbl.grid(row=0, column=1, sticky="ew", padx=(0, 10), pady=12)
+            cb = lambda e, m=mode: self._set_mode(m)
+            for w in [frame, ico, lbl]:
+                w.bind("<Button-1>", cb)
+
+            # Hover: only track on the frame itself, keep children transparent
+            frame.bind("<Enter>", lambda e, f=frame, h=hov: f.configure(fg_color=h))
+            frame.bind("<Leave>", lambda e, f=frame, fg2=fg: f.configure(fg_color=fg2))
+            return frame, ico, lbl
+
+        self.btn_bleep, self._bleep_ico, self._bleep_lbl = _mode_btn(
+            mr, self._ico_bleep_w, self._ico_bleep_d, "Bleep Sound", "bleep", active=True)
+        self.btn_bleep.grid(row=0, column=0, sticky="ew", padx=(0, 6))
+
+        self.btn_mute, self._mute_ico, self._mute_lbl = _mode_btn(
+            mr, self._ico_mute_w, self._ico_mute_d, "Mute / Silence", "mute")
+        self.btn_mute.grid(row=0, column=1, sticky="ew", padx=(6, 6))
+
+        self.btn_cut, self._cut_ico, self._cut_lbl = _mode_btn(
+            mr, self._ico_cut_w, self._ico_cut_d, "Cut Out", "cut")
+        self.btn_cut.grid(row=0, column=2, sticky="ew", padx=(0, 0))
+
+        # — Model —
+        self._section(opts, "WHISPER MODEL", row=2, top=18)
+        mdl = ctk.CTkFrame(opts, fg_color="transparent")
+        mdl.grid(row=3, column=0, sticky="ew", padx=16, pady=(8, 0))
+        mdl.grid_columnconfigure((0, 1, 2, 3), weight=1)
+
+        self.model_btns = {}
+        for i, (lbl, val) in enumerate([("Tiny", "tiny"), ("Base ✓", "base"),
+                                         ("Small", "small"), ("Medium", "medium")]):
+            active = val == "base"
+            b = ctk.CTkButton(
+                mdl, text=lbl,
+                font=ctk.CTkFont("Helvetica", 15, "bold"),
+                fg_color=ACCENT if active else CARD2_BG,
+                hover_color=ACCENT_H if active else "#d5c8b8",
+                text_color="#ffffff" if active else "#2c1a0e",
+                corner_radius=6, height=46,
+                command=lambda v=val: self._set_model(v))
+            b.grid(row=0, column=i, sticky="ew", padx=(0, 6) if i < 3 else 0)
+            self.model_btns[val] = b
+
+
+
+        # — Custom words —
+        self._section(opts, "EXTRA WORDS TO BLEEP", row=5, top=18)
+        wr = ctk.CTkFrame(opts, fg_color="transparent")
+        wr.grid(row=6, column=0, sticky="ew", padx=16, pady=(8, 0))
+        wr.grid_columnconfigure(0, weight=1)
+
+        self.word_entry = ctk.CTkEntry(
+            wr, placeholder_text="Type a word and press Add...",
+            font=ctk.CTkFont("Helvetica", 13),
+            fg_color="#fdf0e3", border_color=BORDER,
+            text_color="#2c1a0e", height=38, corner_radius=6)
+        self.word_entry.grid(row=0, column=0, sticky="ew", padx=(0, 8))
+        self.word_entry.bind("<Return>", lambda e: self._add_word())
+
+        ctk.CTkButton(wr, text="+ Add", width=72, height=38,
+                      font=ctk.CTkFont("Helvetica", 12, "bold"),
+                      fg_color=CARD2_BG, hover_color="#d5c8b8",
+                      text_color="#2c1a0e", corner_radius=6,
+                      command=self._add_word
+                      ).grid(row=0, column=1)
+
+        self.words_label = ctk.CTkLabel(opts, text="",
+                                        font=ctk.CTkFont("Courier", 10),
+                                        text_color=ACCENT,
+                                        wraplength=520, justify="left")
+        self.words_label.grid(row=7, column=0, sticky="w", padx=16, pady=(6, 16))
+
+        # Export filename
+        export_frame = ctk.CTkFrame(s, fg_color="transparent")
+        export_frame.pack(fill="x", padx=28, pady=(14, 0))
+
+        self._section_label(export_frame, "OUTPUT FILENAME")
+        
+        fn_row = ctk.CTkFrame(export_frame, fg_color="transparent")
+        fn_row.pack(fill="x", pady=(6, 0))
+        fn_row.grid_columnconfigure(0, weight=1)
+
+        self.filename_entry = ctk.CTkEntry(
+            fn_row,
+            placeholder_text="Output filename (e.g. clean-ep42.mp3)",
+            font=ctk.CTkFont("Helvetica", 13),
+            fg_color="#fdf0e3", border_color=BORDER,
+            text_color="#2c1a0e", height=40, corner_radius=6)
+        self.filename_entry.pack(fill="x")
+
+        # Process button
+        self.process_btn = ctk.CTkButton(
+            s, text="🔇   PROCESS & SAVE",
+            font=ctk.CTkFont("Helvetica", 16, "bold"),
+            fg_color=ACCENT, hover_color=ACCENT_H,
+            text_color="#ffffff", text_color_disabled="#ffffff", corner_radius=10, height=62,
+            state="disabled", command=self._start)
+        self.process_btn.pack(fill="x", padx=28, pady=(18, 0))
+
+        # Progress
+        pf = ctk.CTkFrame(s, fg_color="transparent")
+        pf.pack(fill="x", padx=28, pady=(10, 0))
+
+        self.status_lbl = ctk.CTkLabel(
+            pf, text="Ready — choose a podcast file to get started",
+            font=ctk.CTkFont("Helvetica", 13),
+            text_color=MUTED, anchor="w")
+        self.status_lbl.pack(fill="x")
+
+        self.pbar = ctk.CTkProgressBar(pf, height=6, corner_radius=3,
+                                        fg_color=CARD2_BG, progress_color=ACCENT)
+        self.pbar.pack(fill="x", pady=(8, 0))
+        self.pbar.set(0)
+
+        # Log
+        self.log_box = ctk.CTkTextbox(
+            s, font=ctk.CTkFont("Helvetica", 12),
+            fg_color="#f5e6d3", text_color="#5a3e28",
+            corner_radius=10, border_width=0,
+            height=115, wrap="word")
+        self.log_box.pack(fill="x", padx=28, pady=(10, 16))
+        self.log_box.configure(state="disabled")
+
+    def _section_label(self, parent, text):
+        ctk.CTkLabel(parent, text=text,
+                     font=ctk.CTkFont("Helvetica", 12, "bold"),
+                     text_color=MUTED, anchor="w").pack(anchor="w")
+
+    def _section(self, parent, text, row, top=0):
+        ctk.CTkLabel(parent, text=text,
+                     font=ctk.CTkFont("Helvetica", 12, "bold"),
+                     text_color=MUTED, anchor="w"
+                     ).grid(row=row, column=0, sticky="ew", padx=16, pady=(top, 4))
+
+    # ── Interactions ────────────────────────────────────────────────────────
+
+    def _set_mode(self, mode):
+        self.mode_var.set(mode)
+        combos = [
+            (self.btn_bleep, self._bleep_ico, self._bleep_lbl, self._ico_bleep_w, self._ico_bleep_d, "bleep"),
+            (self.btn_mute,  self._mute_ico,  self._mute_lbl,  self._ico_mute_w,  self._ico_mute_d,  "mute"),
+            (self.btn_cut,   self._cut_ico,   self._cut_lbl,   self._ico_cut_w,   self._ico_cut_d,   "cut"),
+        ]
+        for frame, ico, lbl, ico_w, ico_d, val in combos:
+            if val == mode:
+                frame.configure(fg_color=ACCENT)
+                ico.configure(image=ico_w, fg_color=ACCENT)
+                lbl.configure(text_color="#ffffff", fg_color=ACCENT)
+            else:
+                frame.configure(fg_color=CARD2_BG)
+                ico.configure(image=ico_d, fg_color=CARD2_BG)
+                lbl.configure(text_color="#2c1a0e", fg_color=CARD2_BG)
+
+    def _set_model(self, val):
+        self.model_var.set(val)
+        for v, b in self.model_btns.items():
+            if v == val:
+                b.configure(fg_color=ACCENT, hover_color=ACCENT_H, text_color="#ffffff")
+            else:
+                b.configure(fg_color=CARD2_BG, hover_color="#d5c8b8", text_color="#2c1a0e")
+
+    def _register_drop(self, widget):
+        """Register drag and drop on a widget using tkinter DnD."""
+        try:
+            widget.drop_target_register('*')
+            widget.dnd_bind('<<Drop>>', self._on_drop)
+            widget.dnd_bind('<<DragEnter>>', lambda e: self.drop_card.configure(border_color=ACCENT))
+            widget.dnd_bind('<<DragLeave>>', lambda e: self.drop_card.configure(border_color=BORDER))
+        except Exception:
+            pass  # tkinterdnd2 not installed, drag+drop silently disabled
+
+    def _on_drop(self, event):
+        self.drop_card.configure(border_color=BORDER)
+        path = event.data.strip().strip('{}')  # Windows wraps paths in {}
+        if os.path.isfile(path):
+            self._set_file(path)
+
+    def _choose_file(self):
+        path = filedialog.askopenfilename(
+            title="Choose podcast",
+            filetypes=[("Audio", "*.mp3 *.m4a *.wav *.ogg *.flac *.aac"), ("All", "*.*")])
+        if path:
+            self._set_file(path)
+
+    def _set_file(self, path):
+        self.audio_path = path
+        name = os.path.basename(path)
+        size = os.path.getsize(path) / 1024 / 1024
+        self.drop_emoji.configure(text="✅")
+        self.drop_title.configure(text=name, text_color=TEXT)
+        self.drop_hint.configure(text=f"{size:.1f} MB · ready to process")
+        self.drop_card.configure(border_color=GREEN)
+        self.process_btn.configure(state="normal")
+        # Pre-fill output filename based on input
+        base, _ = os.path.splitext(name)
+        self.filename_entry.delete(0, "end")
+        self.filename_entry.insert(0, base + "-clean.mp3")
+        self._log(f"Loaded: {name}")
+
+    def _add_word(self):
+        w = self.word_entry.get().strip().lower()
+        if w and len(w) >= 2 and w not in self.custom_words:
+            self.custom_words.append(w)
+            self.word_entry.delete(0, "end")
+            self.words_label.configure(text="Extra: " + "  ·  ".join(self.custom_words))
+
+    def _log(self, msg):
+        self.log_box.configure(state="normal")
+        self.log_box.insert("end", msg + "\n")
+        self.log_box.see("end")
+        self.log_box.configure(state="disabled")
+
+    def _status(self, txt, color=None):
+        self.status_lbl.configure(text=txt, text_color=color or MUTED)
+
+    def _progress(self, v):
+        self.pbar.set(min(v, 1.0))
+        if v >= 1.0:
+            self.pbar.configure(progress_color=GREEN)
+
+    # ── Processing ──────────────────────────────────────────────────────────
+
+    def _start(self):
+        if self.processing or not self.audio_path: return
+        self.processing = True
+        self.pbar.configure(progress_color=ACCENT)
+        self.process_btn.configure(state="disabled", text="⏳  Processing...")
+        threading.Thread(target=self._run, daemon=True).start()
+
+    def _run(self):
+        try:
+            self._process()
+        except Exception as e:
+            self.after(0, self._log, f"❌ Error: {e}")
+            self.after(0, self._status, f"❌ {e}", "#ff6b6b")
+        finally:
+            self.processing = False
+            self.after(0, self.process_btn.configure,
+                       {"state": "normal", "text": "🔇   PROCESS & SAVE"})
+
+    def _process(self):
+        import numpy as np
+        from pydub import AudioSegment
+        import whisper
+
+        self.after(0, self._status, "Loading audio...")
+        self.after(0, self._progress, 0.05)
+        self.after(0, self._log, f"▶ Loading audio...")
+
+        audio = AudioSegment.from_file(self.audio_path)
+        dur = len(audio) / 1000
+        self.after(0, self._log, f"  {int(dur//60)}m {int(dur%60)}s · {audio.channels}ch · {audio.frame_rate}Hz")
+
+        # Write temp WAV for Whisper
+        tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False, mode="wb")
+        audio.set_channels(1).set_frame_rate(16000).export(tmp.name, format="wav")
+        tmp.close()
+
+        # Load Whisper model
+        self.after(0, self._status, f"Loading Whisper model '{self.model_var.get()}'...")
+        self.after(0, self._progress, 0.15)
+        self.after(0, self._log, f"▶ Loading Whisper '{self.model_var.get()}' model...")
+        model = whisper.load_model(self.model_var.get())
+
+        # Transcribe
+        self.after(0, self._status, "Transcribing audio... ☕ grab a coffee")
+        self.after(0, self._progress, 0.25)
+        self.after(0, self._log, "▶ Transcribing (this takes a while)...")
+
+        result = model.transcribe(tmp.name, word_timestamps=True, verbose=False)
+        self._last_result = result
+        try: os.unlink(tmp.name)
+        except: pass
+
+        self.after(0, self._progress, 0.65)
+        self.after(0, self._log, f"  ✓ Done — {len(result['segments'])} segments")
+
+        # Find curse words - comprehensive detection
+        self.after(0, self._status, "Scanning for curse words...")
+        bad = set(CURSE_WORDS + self.custom_words)
+        ranges, found = [], []
+
+        def is_bad(word_str):
+            clean = "".join(c for c in word_str.lower() if c.isalpha())
+            if not clean:
+                return False
+            for b in bad:
+                # Exact, starts-with, or partial match at segment boundary
+                if clean == b or clean.startswith(b):
+                    return True
+            return False
+
+        for seg in result.get("segments", []):
+            for wi in seg.get("words", []):
+                if is_bad(wi.get("word", "")):
+                    # Extra padding to make sure full word is covered
+                    s = max(0, wi["start"] - 0.1)
+                    e = wi["end"] + 0.1
+                    found.append((wi["word"].strip(), s, e))
+                    # Merge ranges within 0.3s of each other
+                    if ranges and s <= ranges[-1][1] + 0.3:
+                        ranges[-1] = (ranges[-1][0], max(ranges[-1][1], e))
+                    else:
+                        ranges.append((s, e))
+
+        self.after(0, self._log, f"▶ {len(found)} word(s) found")
+        for word, s, e in found:
+            self.after(0, self._log, f"  [{s:.1f}s – {e:.1f}s]  \"{word}\"")
+
+        # Apply effect
+        mode = self.mode_var.get()
+        self.after(0, self._status, f"Applying {mode} effect...")
+        self.after(0, self._progress, 0.80)
+
+        sr, ch = audio.frame_rate, audio.channels
+
+        if mode == "cut":
+            # Build list of kept segments and concatenate
+            self.after(0, self._log, f"▶ Cutting out {len(ranges)} segment(s)...")
+            from pydub import AudioSegment as AS
+            kept = []
+            prev_end_ms = 0
+            for s0s, e0s in sorted(ranges):
+                s0_ms = int(s0s * 1000)
+                e0_ms = int(e0s * 1000)
+                if prev_end_ms < s0_ms:
+                    kept.append(audio[prev_end_ms:s0_ms])
+                prev_end_ms = e0_ms
+            # Add remainder after last cut
+            if prev_end_ms < len(audio):
+                kept.append(audio[prev_end_ms:])
+            out_audio = kept[0]
+            for seg in kept[1:]:
+                out_audio = out_audio + seg
+            orig_dur = len(audio) / 1000
+            new_dur = len(out_audio) / 1000
+            saved = orig_dur - new_dur
+            self.after(0, self._log, f"  ✓ Cut {saved:.1f}s of audio — {int(new_dur//60)}m {int(new_dur%60)}s remaining")
+        else:
+            samples = np.array(audio.get_array_of_samples(), dtype=np.float32)
+            if ch == 2: samples = samples.reshape((-1, 2))
+
+            for s0s, e0s in ranges:
+                s0 = int(s0s * sr)
+                s1 = min(len(samples), int(e0s * sr))
+                d  = s1 - s0
+                if mode == "mute":
+                    fade = min(200, d // 10)
+                    for i in range(d):
+                        idx = s0 + i
+                        if idx >= len(samples): break
+                        v = 0.02
+                        if i < fade: v = (1 - i/fade) * 0.02
+                        elif i > d - fade: v = ((d-i)/fade) * 0.02
+                        samples[idx] = samples[idx] * v
+                else:
+                    ds = d / sr
+                    for i in range(d):
+                        idx = s0 + i
+                        if idx >= len(samples): break
+                        t = i / sr
+                        t = i / sr
+                        # Raised-cosine envelope — completely smooth, no clicks
+                        env = 0.5 * (1 - math.cos(2 * math.pi * t / ds)) if ds > 0 else 0
+                        b = math.sin(2 * math.pi * 440 * t) * 0.15 * env * 32767
+                        samples[idx] = [b, b] if ch == 2 else b
+
+            import array as arr
+            raw = arr.array("h", np.clip(samples, -32768, 32767).astype(np.int16).flatten().tolist())
+            out_audio = audio._spawn(raw.tobytes())
+
+        # Save
+        self.after(0, self._status, "Saving...")
+        self.after(0, self._progress, 0.93)
+
+        custom_name = self.filename_entry.get().strip()
+        base_path, _ = os.path.splitext(self.audio_path)
+        if custom_name:
+            if not custom_name.lower().endswith(".mp3"):
+                custom_name += ".mp3"
+            out_path = os.path.join(os.path.dirname(self.audio_path), custom_name)
+        else:
+            out_path = base_path + "-clean.mp3"
+        # Match original file bitrate
+        try:
+            from mutagen.mp3 import MP3
+            orig_bitrate = int(MP3(self.audio_path).info.bitrate / 1000)
+            orig_bitrate = max(64, min(320, orig_bitrate))  # clamp to sane range
+            bitrate = f"{orig_bitrate}k"
+        except Exception:
+            bitrate = "128k"  # safe fallback
+        out_audio.export(out_path, format="mp3", bitrate=bitrate)
+        self.after(0, self._log, f"  Exported at {bitrate}")
+
+        # Generate report
+        base_path, _ = os.path.splitext(self.audio_path)
+        report_path = base_path + "-report.txt"
+        self._write_report(report_path, found, ranges, mode, dur, out_path)
+
+        self.after(0, self._progress, 1.0)
+        self.after(0, self._status, f"✅ Done! {len(found)} word(s) censored", GREEN)
+        self.after(0, self._log, f"✅ Saved: {out_path}")
+        self.after(0, self._log, f"📄 Report: {report_path}")
+        self.after(500, lambda: self._done(out_path, report_path, len(found), mode))
+
+    def _write_report(self, report_path, found, ranges, mode, orig_dur, out_path):
+        mode_label = {"bleep": "Bleep Sound", "mute": "Mute / Silence", "cut": "Cut Out"}[mode]
+        lines = []
+        lines.append("=" * 60)
+        lines.append("  PODCASTCLEAN — CENSOR REPORT")
+        lines.append("=" * 60)
+        lines.append(f"  Input file : {os.path.basename(self.audio_path)}")
+        lines.append(f"  Output file: {os.path.basename(out_path)}")
+        lines.append(f"  Mode       : {mode_label}")
+        lines.append(f"  Duration   : {int(orig_dur//60)}m {int(orig_dur%60)}s")
+        lines.append(f"  Words found: {len(found)}")
+        lines.append("=" * 60)
+        lines.append("")
+
+        if not found:
+            lines.append("  ✅ No curse words detected.")
+        else:
+            lines.append("  CENSORED WORDS:")
+            lines.append("")
+            for i, (word, start, end) in enumerate(found, 1):
+                mm_s = int(start // 60)
+                ss_s = int(start % 60)
+                mm_e = int(end // 60)
+                ss_e = int(end % 60)
+                lines.append(f'  {i:>3}.  [{mm_s:02d}:{ss_s:02d} - {mm_e:02d}:{ss_e:02d}]  "{word}"')
+
+            lines.append("")
+            lines.append("=" * 60)
+            lines.append("  FULL TRANSCRIPT:")
+            lines.append("=" * 60)
+            lines.append("")
+
+            # Write full transcript with censored words marked
+            try:
+                import whisper
+                # Re-use already loaded result stored on self if available
+                result = getattr(self, '_last_result', None)
+                if result:
+                    bad = set(CURSE_WORDS + self.custom_words)
+                    for seg in result.get("segments", []):
+                        ts = seg.get("start", 0)
+                        mm = int(ts // 60)
+                        ss = int(ts % 60)
+                        text = seg.get("text", "").strip()
+                        # Mark bad words in transcript
+                        words_in_seg = text.split()
+                        marked = []
+                        for w in words_in_seg:
+                            clean = "".join(c for c in w.lower() if c.isalpha())
+                            is_bad = any(clean == b or clean.startswith(b) for b in bad)
+                            marked.append(f"[{w.upper()}]" if is_bad else w)
+                        lines.append(f"  [{mm:02d}:{ss:02d}]  {' '.join(marked)}")
+                    lines.append("")
+            except Exception:
+                pass
+
+        with open(report_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines))
+
+    def _done(self, out_path, report_path, count, mode):
+        extra = "\nSwear-free and shorter! ✂️" if mode == "cut" else ""
+        if messagebox.askyesno("✅ Done!", f"Clean file saved!\n\n{os.path.basename(out_path)}\n\n{count} word(s) censored.{extra}\n\nA report was saved next to the audio file.\n\nOpen folder?"):
+            import subprocess
+            subprocess.Popen(["explorer", "/select,", os.path.normpath(out_path)])
+
+    def _check_deps(self):
+        missing = []
+        for pkg, name in [("whisper","openai-whisper"), ("numpy","numpy"), ("pydub","pydub")]:
+            try: __import__(pkg)
+            except: missing.append(name)
+        if missing:
+            self.after(0, messagebox.showerror, "Missing packages",
+                       "Run:\n  py -3.11 -m pip install " + " ".join(missing))
+        else:
+            self.after(0, self._log, "✓ All packages ready")
+            self.after(0, self._log, "✓ Click the drop zone above to load a podcast")
+
+
+if __name__ == "__main__":
+    app = App()
+    app.mainloop()
