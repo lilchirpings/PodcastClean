@@ -26,13 +26,12 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-import base64, io
 import warnings
 warnings.filterwarnings("ignore", message=".*Triton.*")
 warnings.filterwarnings("ignore", message=".*triton.*")
 warnings.filterwarnings("ignore", message=".*ffmpeg.*")
 import customtkinter as ctk
-from PIL import Image as PILImage
+from PIL import Image as PILImage, ImageDraw as PILImageDraw
 
 ctk.set_appearance_mode("light")
 ctk.set_default_color_theme("dark-blue")
@@ -105,13 +104,80 @@ TEXT     = "#2c1a0e"
 MUTED    = "#9a7b5e"
 BORDER   = "#a07850"
 
-# ── Icons (base64 embedded PNGs) ────────────────────────────────────────────
-ICON_BLEEP = "iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAABqElEQVR4nO3bXW6DMBBGUVN1/1umL63SHyWBqoyn/s7ZQABfDxAlYwAAAAAAAAAAAAAU2vd9n30MK3qZfQBHWPzr/IsAuE77AOz+a7UOwOJfr20AFr9G2wCo0TIAu79OuwAsfq3X2QfwWeXif/6sbdu2qs/tpt0EqGDK3LQJoGJR9nczPrurFgEkL8Bs0wOoXPxH9/rUCKcHwFxTA0jddZ386vVn1sL91evao+NPeyU8PQFW37X33hRW5Rkg3KkAknZGyrmaAOEiAzj6oJcwBSID4OZwAAm7IZEJ8MTq4QsgnADCCSCcAMIJIJwAwgkgnADCCeCJ1X8gcjiA1S9EKhMgXGQAR7/fT5h6kQFwcyqAhB3xIeVcTYBwpwNYfWds72YfR5WpJ3r2xxZ/sTD+FPLV1FtA4gXvxjNAuOkBVE4B4/+n6QGMkXvxO2gRwBg1Edx7wk8OsE0AlZIX/Lt2F8J9ula7CWCRa7ULYAwRVGoZAHXaBmAK1GgbwBgiqNA6gDFEcLX2AcAYY/3/6QMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACwvDeHKoheJb976QAAAABJRU5ErkJggg=="
-ICON_MUTE  = "iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAACoUlEQVR4nO3bSY7jMBBE0XCj739l9aoBLyxxEMmc/lsbRTkzmKLLsgQAAAAAAAAAAAAAAAAAALDRdV2X9TVU8Mf6An6h+ef8tb6AWb9C8vl8PlnX3cXdBOjZ/Xev2T05rNbdyVUA3jR/5G/MsFp3NzcBWNH80df1slr3BDcBaBkt7qpmWK17iosARCtaJuYB8Nx8z9e2imkAKhTYO/MJ4FWVcJoFYLTAJ//Z8qb50f4pZBKA2QJ7L6736/vleADejtaRIs+slTWcd0KeAXaFoFrzpcNfBq08WH0X/dSBLXKj73QFIPqJ+Lquq9W86O9xVvMWEKEwPTvz6X30vMeMu18Kegb4ZTYElZsvNQIQYfd/29GozM2XEk2AXt+hjhbwHdIFoPdWUH30/5cuANKaxlVovvQQAMZjDSkngPRuB1fZ/VLiAEhzjazUfCl5ANCWPgAjO7ra7pcKBEDqa2zF5ktFArDyNwfZpA/AiecBIksfADxLHYCTj4RFlTYAbxpZKQS3Aah6Kq4m5QRYsYOrTIF0Aej9mvftY2RZpAtAy3fjuc01AhCtQDt2bPYpkGYCzD7hU/1W0AxAhCnw9vGuyiHo+mHIqhBYFbH3y6CsTX5y9BawY5qcbFrGgIQ+A6x+srfireB4AE6eKXgkrM1kAqwosuVOzDQFTNPeKuRdUE78qGOkyZGnRugzwJ3TPwyJPBFMAzDTKK/F9npdLeYTYMdOW9WM0YBGDIF5AKQ9H7+smhEtBC4CADtuAhD5JB2ZmwBIhMCCqwBIhOA0dwG4MxqMVUGyWvcUlwG4K2JvcVc3wWrdE8JdsPT8UWtnE6zW3cnlBGh5OyGirQsAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIBE/gGhPHBWpsJ/NQAAAABJRU5ErkJggg=="
-ICON_CUT   = "iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAADWUlEQVR4nO3dy5LrIAyE4c6pef9Xzlllk8rFAQla4v+2U5MY1MY3HCQAAAAAAAAAAAAAAAAAAAAAtd12fOn9fr+/+9vtdtuyTada1tmfiv4OYcj3b8WXjBR/5v9wXeoeFllARoMcaSNA9N7LaJAjJQBZxSIE8f52ffGrIZ0Crxd+XP1WxCvH8ojPwDWhHRl9fc/9gnxLLgPha0kARvdW9vJ8YQHIOIH79JmVThidtzV9BBjdi5077RePdri2x/IcwLWzfvXcDsd22QXAsZNGvGuHW/usAuDWOaO+tcOpnTYBcOqUGVfb4dLe9ABcaahLZ8z6tR0O7Q4LwMw1e4fr/aoTXmwmhETfKl6pavElo3MAqWYIKhdfKvo0cPRzo1XZzk9SNmZ0yJ/dm1d2bofiSxsDkGVFJ3cpvpR0DrCzsdnh61R8KfEksGMIuhVfWvRiyExBHh24u/N3f3+WMhNCdl4idi2+VPDdwNXF6Fx8aVMAZq0qSvfiS2Z3Aq9aUcwTii8VDYCUG4JTii8VDoCUE4KTii8VD4AUG4LTii81CIAUE4ITiy8VvQp4Z+UziA7Fl5qMAA+ritKl+FKzAEj5xelUfKlhAKS8InUrvtQ0AFJ8sToWX2ocACmuaF2LLzUPgDRfvM7Flw4IAD4jAIdrH4DZm0O73zvI1joAO2cEVdE2ANFF6xqClgFwmhXsrl0AHN8LcNYqAKuK0ykEbW5yzD7PP3U+QIsRIKJ4FV9Nj1A+AJF77okhKB2AjGH7tBCUDUDmMfukEJQMwIoTtlNCwLuBX3S/Oij1kyq7itE5BDY/E/ft/3YWofPhoMy6gb/K2AM7jgRl1g38hdOsYPeRoNS6gVc4vhfgHAJ+J3BQl8MBvxQ6ocp2fmK3bmC1Tq22vc+s7gRW7Mzq5wQ2PxNXsfgPlUNgsW6gS2fMqBoCi3UDXfbkWSseOEWzOQdw6IwImY+cM9gEQPLplFkZk06yWAVA8uqcGZHTzjLZBUDy66RRERNPs1msG/iKY2eNeLTDtT0W6waOfKZrh77ivK1lJoQgh+U5ANYp+TTQeUitptx8AIof62/XF3N891Bq3UD2/nhl1g2k+DnKrBuIHDYTQiL/D9eVezcQAAAAAAAAAAAAAAAAAAAAwJP/S/w4snL9BmMAAAAASUVORK5CYII="
+# ── Icons (drawn vector-like for crisp scaling) ─────────────────────────────
+def _mode_icon(kind, color, size=24):
+    """Render a high-quality mode icon and return a CTkImage."""
+    # Keep a high-res source image so CTk can resample cleanly on DPI scaling.
+    scale = 10
+    canvas = size * scale
+    stroke = max(8, int(canvas * 0.075))
 
-def _load_icon(b64, size=28):
-    img = PILImage.open(io.BytesIO(base64.b64decode(b64))).resize((size, size), PILImage.LANCZOS)
+    if isinstance(color, str):
+        color_rgba = color
+    else:
+        color_rgba = (*color, 255) if len(color) == 3 else tuple(color)
+
+    img = PILImage.new("RGBA", (canvas, canvas), (0, 0, 0, 0))
+    d = PILImageDraw.Draw(img)
+
+    # Shared speaker body used by bleep/mute.
+    speaker = [
+        (int(canvas * 0.14), int(canvas * 0.38)),
+        (int(canvas * 0.33), int(canvas * 0.38)),
+        (int(canvas * 0.54), int(canvas * 0.22)),
+        (int(canvas * 0.54), int(canvas * 0.78)),
+        (int(canvas * 0.33), int(canvas * 0.62)),
+        (int(canvas * 0.14), int(canvas * 0.62)),
+    ]
+
+    if kind in ("bleep", "mute"):
+        d.polygon(speaker, fill=color_rgba)
+
+    if kind == "bleep":
+        d.arc(
+            (int(canvas * 0.50), int(canvas * 0.20), int(canvas * 0.88), int(canvas * 0.80)),
+            start=-45, end=45, fill=color_rgba, width=stroke
+        )
+        d.arc(
+            (int(canvas * 0.58), int(canvas * 0.30), int(canvas * 0.84), int(canvas * 0.70)),
+            start=-45, end=45, fill=color_rgba, width=stroke
+        )
+    elif kind == "mute":
+        d.line(
+            (int(canvas * 0.58), int(canvas * 0.22), int(canvas * 0.88), int(canvas * 0.80)),
+            fill=color_rgba, width=stroke + 2
+        )
+    elif kind == "cut":
+        x_off = 0
+        d.ellipse(
+            (int(canvas * 0.12) + x_off, int(canvas * 0.18), int(canvas * 0.40) + x_off, int(canvas * 0.46)),
+            outline=color_rgba, width=stroke
+        )
+        d.ellipse(
+            (int(canvas * 0.12) + x_off, int(canvas * 0.54), int(canvas * 0.40) + x_off, int(canvas * 0.82)),
+            outline=color_rgba, width=stroke
+        )
+        d.line(
+            (int(canvas * 0.34) + x_off, int(canvas * 0.32), int(canvas * 0.48) + x_off, int(canvas * 0.50)),
+            fill=color_rgba, width=stroke
+        )
+        d.line(
+            (int(canvas * 0.34) + x_off, int(canvas * 0.68), int(canvas * 0.48) + x_off, int(canvas * 0.50)),
+            fill=color_rgba, width=stroke
+        )
+        d.line(
+            (int(canvas * 0.48) + x_off, int(canvas * 0.50), int(canvas * 0.88) + x_off, int(canvas * 0.20)),
+            fill=color_rgba, width=stroke
+        )
+        d.line(
+            (int(canvas * 0.48) + x_off, int(canvas * 0.50), int(canvas * 0.88) + x_off, int(canvas * 0.80)),
+            fill=color_rgba, width=stroke
+        )
+        d.ellipse(
+            (int(canvas * 0.43) + x_off, int(canvas * 0.45), int(canvas * 0.53) + x_off, int(canvas * 0.55)),
+            fill=color_rgba
+        )
+
     return ctk.CTkImage(light_image=img, dark_image=img, size=(size, size))
 
 # ── App ─────────────────────────────────────────────────────────────────────
@@ -208,64 +274,38 @@ class App(ctk.CTk):
         mr.grid(row=1, column=0, sticky="ew", padx=16, pady=(8, 0))
         mr.grid_columnconfigure((0, 1, 2), weight=1)
 
-        # Pre-load icons in both tints
-        self._ico_bleep_w = _load_icon(ICON_BLEEP, 36)
-        self._ico_mute_w  = _load_icon(ICON_MUTE,  36)
-        self._ico_cut_w   = _load_icon(ICON_CUT,   36)
-
-        # Dark tint versions for unselected state
-        def _tint_icon(b64, color=(44,26,14), size=36):
-            img = PILImage.open(io.BytesIO(base64.b64decode(b64))).convert("RGBA").resize((size,size), PILImage.LANCZOS)
-            r,g,b = color
-            pixels = img.load()
-            for y in range(img.height):
-                for x in range(img.width):
-                    pr,pg,pb,pa = pixels[x,y]
-                    pixels[x,y] = (r,g,b,pa)
-            return ctk.CTkImage(light_image=img, dark_image=img, size=(size,size))
-
-        self._ico_bleep_d = _tint_icon(ICON_BLEEP, size=36)
-        self._ico_mute_d  = _tint_icon(ICON_MUTE,  size=36)
-        self._ico_cut_d   = _tint_icon(ICON_CUT,   size=36)
+        # Pre-load crisp icons in active (white) + inactive (dark) tints.
+        icon_size = 24
+        self._ico_bleep_w = _mode_icon("bleep", (255, 255, 255), size=icon_size)
+        self._ico_mute_w  = _mode_icon("mute",  (255, 255, 255), size=icon_size)
+        self._ico_cut_w   = _mode_icon("cut",   (255, 255, 255), size=icon_size)
+        self._ico_bleep_d = _mode_icon("bleep", (44, 26, 14), size=icon_size)
+        self._ico_mute_d  = _mode_icon("mute",  (44, 26, 14), size=icon_size)
+        self._ico_cut_d   = _mode_icon("cut",   (44, 26, 14), size=icon_size)
 
         def _mode_btn(parent, ico_w, ico_d, label, mode, active=False):
             fg   = ACCENT   if active else CARD2_BG
             hov  = ACCENT_H if active else "#d5c8b8"
             tcol = "#ffffff" if active else "#2c1a0e"
             ico_img = ico_w if active else ico_d
-            frame = ctk.CTkFrame(parent, fg_color=fg, corner_radius=8,
-                                  border_width=0, cursor="hand2")
-            frame.grid_columnconfigure(1, weight=1)
-            ico = ctk.CTkLabel(frame, text="", image=ico_img,
-                               fg_color="transparent", cursor="hand2",
-                               bg_color="transparent")
-            ico.grid(row=0, column=0, padx=(12, 6), pady=12)
-            lbl = ctk.CTkLabel(frame, text=label,
-                               font=ctk.CTkFont("Helvetica", 14, "bold"),
-                               fg_color="transparent", text_color=tcol,
-                               anchor="w", cursor="hand2",
-                               bg_color="transparent")
-            lbl.grid(row=0, column=1, sticky="ew", padx=(0, 10), pady=12)
-            cb = lambda e, m=mode: self._set_mode(m)
-            for w in [frame, ico, lbl]:
-                w.bind("<Button-1>", cb)
+            return ctk.CTkButton(
+                parent, text=label, image=ico_img, compound="left",
+                font=ctk.CTkFont("Helvetica", 15, "bold"),
+                fg_color=fg, hover_color=hov, text_color=tcol,
+                corner_radius=6, height=46, border_spacing=10, anchor="center",
+                command=lambda m=mode: self._set_mode(m))
 
-            # Hover: only track on the frame itself, keep children transparent
-            frame.bind("<Enter>", lambda e, f=frame, h=hov: f.configure(fg_color=h))
-            frame.bind("<Leave>", lambda e, f=frame, fg2=fg: f.configure(fg_color=fg2))
-            return frame, ico, lbl
-
-        self.btn_bleep, self._bleep_ico, self._bleep_lbl = _mode_btn(
+        self.btn_bleep = _mode_btn(
             mr, self._ico_bleep_w, self._ico_bleep_d, "Bleep Sound", "bleep", active=True)
         self.btn_bleep.grid(row=0, column=0, sticky="ew", padx=(0, 6))
 
-        self.btn_mute, self._mute_ico, self._mute_lbl = _mode_btn(
+        self.btn_mute = _mode_btn(
             mr, self._ico_mute_w, self._ico_mute_d, "Mute / Silence", "mute")
-        self.btn_mute.grid(row=0, column=1, sticky="ew", padx=(6, 6))
+        self.btn_mute.grid(row=0, column=1, sticky="ew", padx=(0, 6))
 
-        self.btn_cut, self._cut_ico, self._cut_lbl = _mode_btn(
+        self.btn_cut = _mode_btn(
             mr, self._ico_cut_w, self._ico_cut_d, "Cut Out", "cut")
-        self.btn_cut.grid(row=0, column=2, sticky="ew", padx=(0, 0))
+        self.btn_cut.grid(row=0, column=2, sticky="ew")
 
         # — Model —
         self._section(opts, "WHISPER MODEL", row=2, top=18)
@@ -384,19 +424,17 @@ class App(ctk.CTk):
     def _set_mode(self, mode):
         self.mode_var.set(mode)
         combos = [
-            (self.btn_bleep, self._bleep_ico, self._bleep_lbl, self._ico_bleep_w, self._ico_bleep_d, "bleep"),
-            (self.btn_mute,  self._mute_ico,  self._mute_lbl,  self._ico_mute_w,  self._ico_mute_d,  "mute"),
-            (self.btn_cut,   self._cut_ico,   self._cut_lbl,   self._ico_cut_w,   self._ico_cut_d,   "cut"),
+            (self.btn_bleep, self._ico_bleep_w, self._ico_bleep_d, "bleep"),
+            (self.btn_mute,  self._ico_mute_w,  self._ico_mute_d,  "mute"),
+            (self.btn_cut,   self._ico_cut_w,   self._ico_cut_d,   "cut"),
         ]
-        for frame, ico, lbl, ico_w, ico_d, val in combos:
+        for btn, ico_w, ico_d, val in combos:
             if val == mode:
-                frame.configure(fg_color=ACCENT)
-                ico.configure(image=ico_w, fg_color=ACCENT)
-                lbl.configure(text_color="#ffffff", fg_color=ACCENT)
+                btn.configure(fg_color=ACCENT, hover_color=ACCENT_H,
+                              text_color="#ffffff", image=ico_w)
             else:
-                frame.configure(fg_color=CARD2_BG)
-                ico.configure(image=ico_d, fg_color=CARD2_BG)
-                lbl.configure(text_color="#2c1a0e", fg_color=CARD2_BG)
+                btn.configure(fg_color=CARD2_BG, hover_color="#d5c8b8",
+                              text_color="#2c1a0e", image=ico_d)
 
     def _set_model(self, val):
         self.model_var.set(val)
