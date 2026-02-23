@@ -318,7 +318,7 @@ class App(ctk.CTk):
 
         self.religious_var = ctk.BooleanVar(value=True)
         self.religious_switch = ctk.CTkSwitch(
-            rel_frame, text="Filter religious words  (god, jesus, hell, damn, ...)",
+            rel_frame, text="Filter religious words",
             font=ctk.CTkFont("Helvetica", 13),
             text_color=TEXT, fg_color=CARD2_BG,
             progress_color=ACCENT, button_color=ACCENT,
