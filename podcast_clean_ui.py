@@ -10,8 +10,6 @@ First install customtkinter:
 import os
 import sys
 import math
-import json
-import base64
 import tempfile
 import threading
 import tkinter as tk
@@ -38,35 +36,31 @@ from PIL import Image as PILImage, ImageDraw as PILImageDraw
 ctk.set_appearance_mode("light")
 ctk.set_default_color_theme("dark-blue")
 
-# ── Profanity list (base64-encoded to keep source clean) ───────────────────
+# ── Profanity lists ──────────────────────────────────────────────────────────
 
-_ENCODED_WORDS = (
-    "WyJhcGVzaGl0IiwiYXJzZSIsImFyc2Vob2xlIiwiYXNzY2xvd24iLCJhc3NlcyIsImFzc2ZhY2Ui"
-    "LCJhc3NoYXQiLCJhc3Nob2xlIiwiYXNzd2lwZSIsImJhZGFzcyIsImJhc3RhcmQiLCJiYXN0YXJk"
-    "cyIsImJpdGNoIiwiYml0Y2hhc3MiLCJiaXRjaGVzIiwiYml0Y2hpbmciLCJiaXRjaHkiLCJib2xs"
-    "b2NrcyIsImJ1bGxvY2tzIiwiYnVsbHNoaXQiLCJjb2NraGVhZCIsImNvY2tzdWNrZXIiLCJjb2Nr"
-    "d29tYmxlIiwiY3JhcCIsImNyYXBweSIsImNyb3RjaCIsImN1bnQiLCJjdW50cyIsImRpY2tmYWNl"
-    "IiwiZGlja2hlYWQiLCJkaWNrd2FkIiwiZGlja3dlZWQiLCJkaXBzaGl0IiwiZGlwc3RpY2siLCJk"
-    "b3VjaGUiLCJkb3VjaGViYWciLCJkb3VjaGViYWdnZXJ5IiwiZHVtYmFzcyIsImZ1Y2siLCJmdWNr"
-    "ZWQiLCJmdWNrZXIiLCJmdWNrZmFjZSIsImZ1Y2toZWFkIiwiZnVja2luIiwiZnVja2luZyIsImZ1"
-    "Y2tzIiwiZnVja3VwIiwiZnVja3dpdCIsImhvcnNlc2hpdCIsImphY2thc3MiLCJtb3RoZXJmdWNr"
-    "IiwibW90aGVyZnVja2VyIiwibW90aGVyZnVja2luZyIsIm5pbmNvbXBvb3AiLCJudW1ibnV0cyIs"
-    "InBpc3NlZCIsInBpc3NoZWFkIiwicGlzc2luZyIsInBpc3NvZmYiLCJwcmljayIsInByaWNrcyIs"
-    "InNoaXQiLCJzaGl0cyIsInNoaXRzdG9ybSIsInNoaXR0ZWQiLCJzaGl0dGluZyIsInNoaXR0eSIs"
-    "InNrYW5rIiwic2thbmt5Iiwic2xhZyIsInNsYWdzIiwic21hcnRhc3MiLCJ0b3NzZXIiLCJ0b3Nz"
-    "ZXJzIiwidHdhdCIsInR3YXRzIiwidHdhdHdhZmZsZXMiLCJ3YW5rZXIiLCJ3YW5rZXJzIiwid2Fu"
-    "a2luZyIsIndob3JlIiwid2hvcmVob3VzZSIsIndob3JlcyJd"
-)
-CURSE_WORDS = json.loads(base64.b64decode(_ENCODED_WORDS))
+CURSE_WORDS = [
+    "apeshit", "arse", "arsehole", "assclown", "asses", "assface", "asshat",
+    "asshole", "asswipe", "badass", "bastard", "bastards", "bitch", "bitchass",
+    "bitches", "bitching", "bitchy", "bollocks", "bullocks", "bullshit",
+    "cockhead", "cocksucker", "cockwomble", "crap", "crappy", "crotch", "cunt",
+    "cunts", "dickface", "dickhead", "dickwad", "dickweed", "dipshit", "douche",
+    "douchebag", "douchebaggery", "dumbass", "fuck", "fucked", "fucker",
+    "fuckface", "fuckhead", "fuckin", "fucking", "fucks", "fuckup", "fuckwit",
+    "horseshit", "jackass", "motherfuck", "motherfucker", "motherfucking",
+    "nincompoop", "numbnuts", "pissed", "pisshead", "pissing", "pissoff",
+    "prick", "pricks", "shit", "shits", "shitstorm", "shitted", "shitting",
+    "shitty", "skank", "skanky", "slag", "slags", "smartass", "tosser",
+    "tossers", "twat", "twats", "twatwaffles", "wanker", "wankers", "wanking",
+    "whore", "whorehouse", "whores",
+]
 
-_ENCODED_RELIGIOUS = (
-    "WyJjaHJpc3Nha2UiLCJjaHJpc3QiLCJjaHJpc3RzYWtlIiwiZGFtbWl0IiwiZGFtbiIsImRhbW5l"
-    "ZCIsImRhbW5pdCIsImdvZCIsImdvZGF3ZnVsIiwiZ29kZGFtIiwiZ29kZGFtbWl0IiwiZ29kZGFt"
-    "biIsImdvZGRhbW5lZCIsImdvZGRhbW5pdCIsImdvZGZvcnNha2VuIiwiaGVsbCIsImhvbHljcmFw"
-    "IiwiaG9seWhlbGwiLCJob2x5c2hpdCIsImplc3VzIiwiamVzdXNjaHJpc3QiLCJqZXN1c2YiLCJs"
-    "b3JkIiwic29ub2ZhIiwic29ub2ZhYml0Y2giLCJzb25vZmFndW4iLCJzd2VldGplc3VzIl0="
-)
-RELIGIOUS_WORDS = json.loads(base64.b64decode(_ENCODED_RELIGIOUS))
+RELIGIOUS_WORDS = [
+    "chrissake", "christ", "christsake", "dammit", "damn", "damned", "damnit",
+    "god", "godawful", "goddam", "goddammit", "goddamn", "goddamned",
+    "goddamnit", "godforsaken", "hell", "holycrap", "holyhell", "holyshit",
+    "jesus", "jesuschrist", "jesusf", "lord", "sonofa", "sonofabitch",
+    "sonofagun", "sweetjesus",
+]
 
 # ── Colors ──────────────────────────────────────────────────────────────────
 
