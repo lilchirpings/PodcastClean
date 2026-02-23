@@ -70,22 +70,22 @@ RELIGIOUS_WORDS = json.loads(base64.b64decode(_ENCODED_RELIGIOUS))
 
 # ── Colors ──────────────────────────────────────────────────────────────────
 
-DARK_BG    = "#e6e2dd"
-CARD_BG    = "#f7f5f2"
-CARD2_BG   = "#e3dfda"
-CARD2_H    = "#d5d1cc"
-ACCENT     = "#6b5f54"
-ACCENT_H   = "#544a40"
+DARK_BG    = "#e4e4e4"
+CARD_BG    = "#f5f5f5"
+CARD2_BG   = "#e0e0e0"
+CARD2_H    = "#d4d4d4"
+ACCENT     = "#505050"
+ACCENT_H   = "#3a3a3a"
 GREEN      = "#4a9e6b"
-YELLOW     = "#a06030"
-TEXT       = "#2d2a27"
-TEXT_RGB   = (45, 42, 39)
+YELLOW     = "#b07030"
+TEXT       = "#1e1e1e"
+TEXT_RGB   = (30, 30, 30)
 WHITE      = "#ffffff"
-MUTED      = "#8c857d"
-BORDER     = "#b5aea5"
-INPUT_BG   = "#f3f1ee"
-LOG_BG     = "#edeae6"
-LOG_TEXT   = "#4a4642"
+MUTED      = "#808080"
+BORDER     = "#b0b0b0"
+INPUT_BG   = "#f0f0f0"
+LOG_BG     = "#eaeaea"
+LOG_TEXT   = "#404040"
 ERROR      = "#ff6b6b"
 
 # ── Icons (drawn vector-like for crisp scaling) ─────────────────────────────
