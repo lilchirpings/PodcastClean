@@ -10,6 +10,8 @@ First install customtkinter:
 import os
 import sys
 import math
+import json
+import base64
 import tempfile
 import threading
 import tkinter as tk
@@ -36,60 +38,35 @@ from PIL import Image as PILImage, ImageDraw as PILImageDraw
 ctk.set_appearance_mode("light")
 ctk.set_default_color_theme("dark-blue")
 
-# ── Profanity list ──────────────────────────────────────────────────────────
+# ── Profanity list (base64-encoded to keep source clean) ───────────────────
 
-CURSE_WORDS = [
-    # F-word family
-    "fuck", "fucking", "fucked", "fucker", "fucks", "fuckin", "fuckup", "fuckface",
-    "motherfuck", "motherfucker", "motherfucking", "fuckwit", "fuckhead",
-    # S-word family
-    "shit", "shitting", "shitty", "shitted", "shits", "shitstorm", "bullshit",
-    "horseshit", "dipshit", "apeshit",
-    # A-word family
-    "asshole", "asses", "asshat", "asswipe", "jackass", "dumbass", "badass",
-    "smartass", "assclown", "assface",
-    # B-word family
-    "bitch", "bitches", "bitching", "bitchy", "bitchass",
-    "bastard", "bastards",
-    # C-words
-    "cunt", "cunts",
-    "cocksucker", "cockhead", "cockwomble",
-    "crappy", "crap",
-    # D-word
-    "dickhead", "dickface", "dickwad", "dickweed",
-    "damn", "damned", "dammit", "goddamn", "goddamned", "goddammit",
-    # P-word
-    "pissed", "pissing", "pissoff", "pisshead",
-    # W-word
-    "whore", "whores", "whorehouse",
-    # Misc
-    "crotch", "douche", "douchebag", "douchebaggery",
-    "twat", "twats", "twatwaffles",
-    "wanker", "wankers", "wanking",
-    "tosser", "tossers",
-    "arsehole", "arse",
-    "bollocks", "bullocks",
-    "prick", "pricks",
-    "slag", "slags",
-    "skank", "skanky",
-    "numbnuts", "dipstick", "nincompoop",
-    # Religious / taking the lord's name in vain
-    # Note: Whisper transcribes as individual words, so single-word forms only
-    "goddamn", "goddamnit", "goddamned", "goddammit",
-    "godforsaken", "godawful",
-    "jesus", "jesuschrist", "sweetjesus", "jesusf",
-    "christ", "christsake", "chrissake",
-    "holyshit", "holycrap", "holyhell",
-    "damnit", "dammit", "sonofabitch", "sonofagun", "sonofa",
-    # Single words Whisper outputs for common oaths
-    "hell",       # standalone "what the hell", "go to hell"
-    "damned",
-    "god",        # "oh god", "swear to god", "for god's sake"
-    "lord",       # "oh lord", "lord almighty"
-    "christ",     # "oh christ"
-    "jesus",      # "jesus!", "jesus christ"
-    "goddam",
-]
+_ENCODED_WORDS = (
+    "WyJhcGVzaGl0IiwiYXJzZSIsImFyc2Vob2xlIiwiYXNzY2xvd24iLCJhc3NlcyIsImFzc2ZhY2Ui"
+    "LCJhc3NoYXQiLCJhc3Nob2xlIiwiYXNzd2lwZSIsImJhZGFzcyIsImJhc3RhcmQiLCJiYXN0YXJk"
+    "cyIsImJpdGNoIiwiYml0Y2hhc3MiLCJiaXRjaGVzIiwiYml0Y2hpbmciLCJiaXRjaHkiLCJib2xs"
+    "b2NrcyIsImJ1bGxvY2tzIiwiYnVsbHNoaXQiLCJjb2NraGVhZCIsImNvY2tzdWNrZXIiLCJjb2Nr"
+    "d29tYmxlIiwiY3JhcCIsImNyYXBweSIsImNyb3RjaCIsImN1bnQiLCJjdW50cyIsImRpY2tmYWNl"
+    "IiwiZGlja2hlYWQiLCJkaWNrd2FkIiwiZGlja3dlZWQiLCJkaXBzaGl0IiwiZGlwc3RpY2siLCJk"
+    "b3VjaGUiLCJkb3VjaGViYWciLCJkb3VjaGViYWdnZXJ5IiwiZHVtYmFzcyIsImZ1Y2siLCJmdWNr"
+    "ZWQiLCJmdWNrZXIiLCJmdWNrZmFjZSIsImZ1Y2toZWFkIiwiZnVja2luIiwiZnVja2luZyIsImZ1"
+    "Y2tzIiwiZnVja3VwIiwiZnVja3dpdCIsImhvcnNlc2hpdCIsImphY2thc3MiLCJtb3RoZXJmdWNr"
+    "IiwibW90aGVyZnVja2VyIiwibW90aGVyZnVja2luZyIsIm5pbmNvbXBvb3AiLCJudW1ibnV0cyIs"
+    "InBpc3NlZCIsInBpc3NoZWFkIiwicGlzc2luZyIsInBpc3NvZmYiLCJwcmljayIsInByaWNrcyIs"
+    "InNoaXQiLCJzaGl0cyIsInNoaXRzdG9ybSIsInNoaXR0ZWQiLCJzaGl0dGluZyIsInNoaXR0eSIs"
+    "InNrYW5rIiwic2thbmt5Iiwic2xhZyIsInNsYWdzIiwic21hcnRhc3MiLCJ0b3NzZXIiLCJ0b3Nz"
+    "ZXJzIiwidHdhdCIsInR3YXRzIiwidHdhdHdhZmZsZXMiLCJ3YW5rZXIiLCJ3YW5rZXJzIiwid2Fu"
+    "a2luZyIsIndob3JlIiwid2hvcmVob3VzZSIsIndob3JlcyJd"
+)
+CURSE_WORDS = json.loads(base64.b64decode(_ENCODED_WORDS))
+
+_ENCODED_RELIGIOUS = (
+    "WyJjaHJpc3Nha2UiLCJjaHJpc3QiLCJjaHJpc3RzYWtlIiwiZGFtbWl0IiwiZGFtbiIsImRhbW5l"
+    "ZCIsImRhbW5pdCIsImdvZCIsImdvZGF3ZnVsIiwiZ29kZGFtIiwiZ29kZGFtbWl0IiwiZ29kZGFt"
+    "biIsImdvZGRhbW5lZCIsImdvZGRhbW5pdCIsImdvZGZvcnNha2VuIiwiaGVsbCIsImhvbHljcmFw"
+    "IiwiaG9seWhlbGwiLCJob2x5c2hpdCIsImplc3VzIiwiamVzdXNjaHJpc3QiLCJqZXN1c2YiLCJs"
+    "b3JkIiwic29ub2ZhIiwic29ub2ZhYml0Y2giLCJzb25vZmFndW4iLCJzd2VldGplc3VzIl0="
+)
+RELIGIOUS_WORDS = json.loads(base64.b64decode(_ENCODED_RELIGIOUS))
 
 # ── Colors ──────────────────────────────────────────────────────────────────
 
@@ -335,7 +312,19 @@ class App(ctk.CTk):
             b.grid(row=0, column=i, sticky="ew", padx=(0, 6) if i < 3 else 0)
             self.model_btns[val] = b
 
+        # — Religious filter toggle —
+        rel_frame = ctk.CTkFrame(opts, fg_color="transparent")
+        rel_frame.grid(row=4, column=0, sticky="ew", padx=16, pady=(14, 0))
 
+        self.religious_var = ctk.BooleanVar(value=True)
+        self.religious_switch = ctk.CTkSwitch(
+            rel_frame, text="Filter religious words  (god, jesus, hell, damn, ...)",
+            font=ctk.CTkFont("Helvetica", 13),
+            text_color=TEXT, fg_color=CARD2_BG,
+            progress_color=ACCENT, button_color=ACCENT,
+            button_hover_color=ACCENT_H,
+            variable=self.religious_var)
+        self.religious_switch.pack(anchor="w")
 
         # — Custom words —
         self._section(opts, "EXTRA WORDS TO BLEEP", row=5, top=18)
@@ -569,7 +558,8 @@ class App(ctk.CTk):
 
         # Find curse words - comprehensive detection
         self.after(0, self._status, "Scanning for curse words...")
-        bad = set(CURSE_WORDS + self.custom_words)
+        word_list = CURSE_WORDS + (RELIGIOUS_WORDS if self.religious_var.get() else [])
+        bad = set(word_list + self.custom_words)
         ranges, found = [], []
 
         def is_bad(word_str):
@@ -733,7 +723,8 @@ class App(ctk.CTk):
                 # Re-use already loaded result stored on self if available
                 result = getattr(self, '_last_result', None)
                 if result:
-                    bad = set(CURSE_WORDS + self.custom_words)
+                    word_list = CURSE_WORDS + (RELIGIOUS_WORDS if self.religious_var.get() else [])
+                    bad = set(word_list + self.custom_words)
                     for seg in result.get("segments", []):
                         ts = seg.get("start", 0)
                         mm = int(ts // 60)
