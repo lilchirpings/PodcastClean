@@ -61,15 +61,31 @@ ffmpeg -version
 
 ---
 
-### Step 3 — Install Python packages
+### Step 3 *(optional)* — Install CUDA Toolkit (NVIDIA GPU only)
 
-```
-py -3.11 -m pip install customtkinter openai-whisper pydub numpy pillow mutagen
-```
+> **Skip this step if you don't have an NVIDIA GPU.** The app works on CPU — it's just slower.
 
-If pip isn't working:
+> ⚠️ **Order matters!** The CUDA Toolkit must be installed **before** PyTorch (Step 5). If you install PyTorch first, it won't detect your GPU and you'll have to uninstall and reinstall PyTorch with `--force-reinstall` to fix it. Following the steps in order avoids this.
+
+1. Download CUDA Toolkit 12.1:
+   👉 https://developer.nvidia.com/cuda-12-1-0-download-archive
+2. Select: Windows → x86_64 → Local Installer
+3. Run the installer (click through defaults, ~5 mins)
+
+   Note: Items like "Nsight for Visual Studio" may show as Not Installed — this is fine.
+
+---
+
+### Step 4 — Install Python packages
+
+If pip isn't working, run this first:
 ```
 py -3.11 -m ensurepip --upgrade
+```
+
+Install all required packages:
+```
+py -3.11 -m pip install customtkinter openai-whisper pydub numpy pillow mutagen
 ```
 
 If packages fail to download, add trusted hosts:
@@ -79,10 +95,11 @@ py -3.11 -m pip install customtkinter openai-whisper pydub numpy pillow mutagen 
 
 ---
 
-### Step 4 — Install PyTorch with CUDA (for GPU acceleration)
+### Step 5 — Install PyTorch
 
-If you have an NVIDIA GPU:
+> ⚠️ If you have an NVIDIA GPU, make sure you completed Step 3 **before** this step. Installing PyTorch without the CUDA Toolkit already present means PyTorch won't detect your GPU, and you'll need to reinstall it.
 
+**If you completed Step 3** (NVIDIA GPU with CUDA Toolkit installed):
 ```
 py -3.11 -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 ```
@@ -93,37 +110,24 @@ py -3.11 -c "import torch; print(torch.cuda.is_available()); print(torch.version
 ```
 Should print `True` and `12.1`.
 
-Without an NVIDIA GPU, install the CPU version instead:
+**If you skipped Step 3** (no NVIDIA GPU, or CPU-only):
 ```
 py -3.11 -m pip install torch
 ```
 
 ---
 
-### Step 5 — Install CUDA Toolkit (for best GPU performance)
+### Step 6 *(optional)* — Install Triton
 
-Without this you may see a warning about Triton kernels falling back to a slower implementation.
+Without this you may see a warning about Triton kernels falling back to a slower implementation. It doesn't affect results, just performance.
 
-1. Download CUDA Toolkit 12.1:
-   👉 https://developer.nvidia.com/cuda-12-1-0-download-archive
-2. Select: Windows → x86_64 → Local Installer
-3. Run the installer (click through defaults, ~5 mins)
-
-   Note: Items like "Nsight for Visual Studio" may show as Not Installed — this is fine.
-
-4. Reinstall PyTorch to pick up the new CUDA install:
-```
-py -3.11 -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 --force-reinstall
-```
-
-5. Install Triton to fully silence the kernel warning:
 ```
 py -3.11 -m pip install triton-windows
 ```
 
 ---
 
-### Step 6 — Optional: Drag and Drop support
+### Step 7 *(optional)* — Drag and Drop support
 
 ```
 py -3.11 -m pip install tkinterdnd2
@@ -190,13 +194,16 @@ py -3.11 -m pip install pillow
 ```
 
 **`torch.cuda.is_available()` returns `False`**
-Re-run the PyTorch CUDA install from Step 4 with `--force-reinstall`.
+Make sure you installed the CUDA Toolkit (Step 3) before PyTorch (Step 5). If you installed them in the wrong order, reinstall PyTorch:
+```
+py -3.11 -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 --force-reinstall
+```
 
 **"Failed to launch Triton kernels" warning**
-Follow Step 5 fully — install CUDA Toolkit, force-reinstall PyTorch, then install `triton-windows`.
+Install Triton (Step 6). If it persists, make sure the CUDA Toolkit is installed (Step 3) and reinstall PyTorch.
 
 **Processing is very slow**
-You're on CPU. Follow Step 4 to enable GPU acceleration.
+You're on CPU. Follow Steps 3 and 5 to enable GPU acceleration.
 
 **False positives — innocent words being censored**
 Some short words (`god`, `hell`, `jesus`, `lord`) are included to catch religious oaths. If they trigger too often, edit the `CURSE_WORDS` list at the top of `podcast_clean_ui.py`.
