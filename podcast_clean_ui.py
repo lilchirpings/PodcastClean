@@ -93,16 +93,23 @@ CURSE_WORDS = [
 
 # ── Colors ──────────────────────────────────────────────────────────────────
 
-DARK_BG  = "#e8d8c4"
-CARD_BG  = "#faf3ea"
-CARD2_BG = "#ecdfd0"
-ACCENT   = "#8b5e3c"
-ACCENT_H = "#6e4a2e"
-GREEN    = "#4a9e6b"
-YELLOW   = "#b05e20"
-TEXT     = "#2c1a0e"
-MUTED    = "#9a7b5e"
-BORDER   = "#a07850"
+DARK_BG    = "#e6e2dd"
+CARD_BG    = "#f7f5f2"
+CARD2_BG   = "#e3dfda"
+CARD2_H    = "#d5d1cc"
+ACCENT     = "#6b5f54"
+ACCENT_H   = "#544a40"
+GREEN      = "#4a9e6b"
+YELLOW     = "#a06030"
+TEXT       = "#2d2a27"
+TEXT_RGB   = (45, 42, 39)
+WHITE      = "#ffffff"
+MUTED      = "#8c857d"
+BORDER     = "#b5aea5"
+INPUT_BG   = "#f3f1ee"
+LOG_BG     = "#edeae6"
+LOG_TEXT   = "#4a4642"
+ERROR      = "#ff6b6b"
 
 # ── Icons (drawn vector-like for crisp scaling) ─────────────────────────────
 def _mode_icon(kind, color, size=24):
@@ -227,7 +234,7 @@ class App(ctk.CTk):
 
         ctk.CTkLabel(hdr, text="Auto Bleep",
                      font=ctk.CTkFont("Helvetica", 42, "bold"),
-                     text_color="#2c1a0e").pack(anchor="w", pady=(6, 0))
+                     text_color=TEXT).pack(anchor="w", pady=(6, 0))
 
         # Drop zone
         self.drop_card = ctk.CTkFrame(
@@ -279,14 +286,14 @@ class App(ctk.CTk):
         self._ico_bleep_w = _mode_icon("bleep", (255, 255, 255), size=icon_size)
         self._ico_mute_w  = _mode_icon("mute",  (255, 255, 255), size=icon_size)
         self._ico_cut_w   = _mode_icon("cut",   (255, 255, 255), size=icon_size)
-        self._ico_bleep_d = _mode_icon("bleep", (44, 26, 14), size=icon_size)
-        self._ico_mute_d  = _mode_icon("mute",  (44, 26, 14), size=icon_size)
-        self._ico_cut_d   = _mode_icon("cut",   (44, 26, 14), size=icon_size)
+        self._ico_bleep_d = _mode_icon("bleep", TEXT_RGB, size=icon_size)
+        self._ico_mute_d  = _mode_icon("mute",  TEXT_RGB, size=icon_size)
+        self._ico_cut_d   = _mode_icon("cut",   TEXT_RGB, size=icon_size)
 
         def _mode_btn(parent, ico_w, ico_d, label, mode, active=False):
             fg   = ACCENT   if active else CARD2_BG
-            hov  = ACCENT_H if active else "#d5c8b8"
-            tcol = "#ffffff" if active else "#2c1a0e"
+            hov  = ACCENT_H if active else CARD2_H
+            tcol = WHITE    if active else TEXT
             ico_img = ico_w if active else ico_d
             return ctk.CTkButton(
                 parent, text=label, image=ico_img, compound="left",
@@ -321,8 +328,8 @@ class App(ctk.CTk):
                 mdl, text=lbl,
                 font=ctk.CTkFont("Helvetica", 15, "bold"),
                 fg_color=ACCENT if active else CARD2_BG,
-                hover_color=ACCENT_H if active else "#d5c8b8",
-                text_color="#ffffff" if active else "#2c1a0e",
+                hover_color=ACCENT_H if active else CARD2_H,
+                text_color=WHITE if active else TEXT,
                 corner_radius=6, height=46,
                 command=lambda v=val: self._set_model(v))
             b.grid(row=0, column=i, sticky="ew", padx=(0, 6) if i < 3 else 0)
@@ -339,15 +346,15 @@ class App(ctk.CTk):
         self.word_entry = ctk.CTkEntry(
             wr, placeholder_text="Type a word and press Add...",
             font=ctk.CTkFont("Helvetica", 13),
-            fg_color="#fdf0e3", border_color=BORDER,
-            text_color="#2c1a0e", height=38, corner_radius=6)
+            fg_color=INPUT_BG, border_color=BORDER,
+            text_color=TEXT, height=38, corner_radius=6)
         self.word_entry.grid(row=0, column=0, sticky="ew", padx=(0, 8))
         self.word_entry.bind("<Return>", lambda e: self._add_word())
 
         ctk.CTkButton(wr, text="+ Add", width=72, height=38,
                       font=ctk.CTkFont("Helvetica", 12, "bold"),
-                      fg_color=CARD2_BG, hover_color="#d5c8b8",
-                      text_color="#2c1a0e", corner_radius=6,
+                      fg_color=CARD2_BG, hover_color=CARD2_H,
+                      text_color=TEXT, corner_radius=6,
                       command=self._add_word
                       ).grid(row=0, column=1)
 
@@ -371,8 +378,8 @@ class App(ctk.CTk):
             fn_row,
             placeholder_text="Output filename (e.g. clean-ep42.mp3)",
             font=ctk.CTkFont("Helvetica", 13),
-            fg_color="#fdf0e3", border_color=BORDER,
-            text_color="#2c1a0e", height=40, corner_radius=6)
+            fg_color=INPUT_BG, border_color=BORDER,
+            text_color=TEXT, height=40, corner_radius=6)
         self.filename_entry.pack(fill="x")
 
         # Process button
@@ -380,7 +387,7 @@ class App(ctk.CTk):
             s, text="🔇   PROCESS & SAVE",
             font=ctk.CTkFont("Helvetica", 16, "bold"),
             fg_color=ACCENT, hover_color=ACCENT_H,
-            text_color="#ffffff", text_color_disabled="#ffffff", corner_radius=10, height=62,
+            text_color=WHITE, text_color_disabled=WHITE, corner_radius=10, height=62,
             state="disabled", command=self._start)
         self.process_btn.pack(fill="x", padx=28, pady=(18, 0))
 
@@ -402,7 +409,7 @@ class App(ctk.CTk):
         # Log
         self.log_box = ctk.CTkTextbox(
             s, font=ctk.CTkFont("Helvetica", 12),
-            fg_color="#f5e6d3", text_color="#5a3e28",
+            fg_color=LOG_BG, text_color=LOG_TEXT,
             corner_radius=10, border_width=0,
             height=115, wrap="word")
         self.log_box.pack(fill="x", padx=28, pady=(10, 16))
@@ -431,18 +438,18 @@ class App(ctk.CTk):
         for btn, ico_w, ico_d, val in combos:
             if val == mode:
                 btn.configure(fg_color=ACCENT, hover_color=ACCENT_H,
-                              text_color="#ffffff", image=ico_w)
+                              text_color=WHITE, image=ico_w)
             else:
-                btn.configure(fg_color=CARD2_BG, hover_color="#d5c8b8",
-                              text_color="#2c1a0e", image=ico_d)
+                btn.configure(fg_color=CARD2_BG, hover_color=CARD2_H,
+                              text_color=TEXT, image=ico_d)
 
     def _set_model(self, val):
         self.model_var.set(val)
         for v, b in self.model_btns.items():
             if v == val:
-                b.configure(fg_color=ACCENT, hover_color=ACCENT_H, text_color="#ffffff")
+                b.configure(fg_color=ACCENT, hover_color=ACCENT_H, text_color=WHITE)
             else:
-                b.configure(fg_color=CARD2_BG, hover_color="#d5c8b8", text_color="#2c1a0e")
+                b.configure(fg_color=CARD2_BG, hover_color=CARD2_H, text_color=TEXT)
 
     def _register_drop(self, widget):
         """Register drag and drop on a widget using tkinter DnD."""
@@ -517,7 +524,7 @@ class App(ctk.CTk):
             self._process()
         except Exception as e:
             self.after(0, self._log, f"❌ Error: {e}")
-            self.after(0, self._status, f"❌ {e}", "#ff6b6b")
+            self.after(0, self._status, f"❌ {e}", ERROR)
         finally:
             self.processing = False
             self.after(0, self.process_btn.configure,
