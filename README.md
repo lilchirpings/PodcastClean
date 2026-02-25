@@ -11,7 +11,7 @@ Automatically detect and censor swearing in podcast audio files using local AI. 
 - ✂️ **Cut Out** — remove the audio entirely, making the episode shorter
 - Runs fully offline using OpenAI Whisper
 - GPU accelerated (NVIDIA)
-- Generates a transcript report showing every censored word with timestamps
+- Generates a transcript report with timestamps and obfuscated censored words
 - Custom word list support
 
 ---
@@ -168,7 +168,7 @@ Downloaded once and cached — no repeated downloads.
 After processing, two files are saved next to your original audio:
 
 - `filename-clean.mp3` — censored audio, exported at the same bitrate as the original
-- `filename-report.txt` — full transcript with every censored word, timestamp, and context
+- `filename-report.txt` — full transcript with obfuscated censored words, timestamps, and context
 
 ---
 
@@ -206,7 +206,11 @@ Install Triton (Step 6). If it persists, make sure the CUDA Toolkit is installed
 You're on CPU. Follow Steps 3 and 5 to enable GPU acceleration.
 
 **False positives — innocent words being censored**
-Some short words (`god`, `hell`, `jesus`, `lord`) are included to catch religious oaths. If they trigger too often, edit the `CURSE_WORDS` list at the top of `podcast_clean_ui.py`.
+Some short words (`god`, `hell`, `jesus`, `lord`) are included to catch religious oaths.
+
+Use the **Filter religious words** toggle in the app to disable those matches.
+
+Advanced: built-in word lists are stored in encoded form in `podcast_clean_ui.py` as `_CURSE_WORDS_B64` and `_RELIGIOUS_WORDS_B64`.
 
 ---
 
