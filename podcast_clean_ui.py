@@ -7,6 +7,7 @@ First install customtkinter:
   py -3.11 -m pip install customtkinter
 """
 
+import base64
 import os
 import sys
 import math
@@ -38,29 +39,44 @@ ctk.set_default_color_theme("dark-blue")
 
 # ── Profanity lists ──────────────────────────────────────────────────────────
 
-CURSE_WORDS = [
-    "apeshit", "arse", "arsehole", "assclown", "asses", "assface", "asshat",
-    "asshole", "asswipe", "badass", "bastard", "bastards", "bitch", "bitchass",
-    "bitches", "bitching", "bitchy", "bollocks", "bullocks", "bullshit",
-    "cockhead", "cocksucker", "cockwomble", "crap", "crappy", "crotch", "cunt",
-    "cunts", "dickface", "dickhead", "dickwad", "dickweed", "dipshit", "douche",
-    "douchebag", "douchebaggery", "dumbass", "fuck", "fucked", "fucker",
-    "fuckface", "fuckhead", "fuckin", "fucking", "fucks", "fuckup", "fuckwit",
-    "horseshit", "jackass", "motherfuck", "motherfucker", "motherfucking",
-    "nincompoop", "numbnuts", "pissed", "pisshead", "pissing", "pissoff",
-    "prick", "pricks", "shit", "shits", "shitstorm", "shitted", "shitting",
-    "shitty", "skank", "skanky", "slag", "slags", "smartass", "tosser",
-    "tossers", "twat", "twats", "twatwaffles", "wanker", "wankers", "wanking",
-    "whore", "whorehouse", "whores",
-]
+def _decode_word_blob(blob):
+    return base64.b64decode(blob.encode("ascii")).decode("utf-8").split("|")
 
-RELIGIOUS_WORDS = [
-    "chrissake", "christ", "christsake", "dammit", "damn", "damned", "damnit",
-    "god", "godawful", "goddam", "goddammit", "goddamn", "goddamned",
-    "goddamnit", "godforsaken", "hell", "holycrap", "holyhell", "holyshit",
-    "jesus", "jesuschrist", "jesusf", "lord", "sonofa", "sonofabitch",
-    "sonofagun", "sweetjesus",
-]
+_CURSE_WORDS_B64 = (
+    "YXBlc2hpdHxhcnNlfGFyc2Vob2xlfGFzc2Nsb3dufGFzc2VzfGFzc2ZhY2V8YXNzaGF0fGFzc2hvbGV8YXNzd2lwZXxiYWRhc3N8"
+    "YmFzdGFyZHxiYXN0YXJkc3xiaXRjaHxiaXRjaGFzc3xiaXRjaGVzfGJpdGNoaW5nfGJpdGNoeXxib2xsb2Nrc3xidWxsb2Nrc3xidWxs"
+    "c2hpdHxjb2NraGVhZHxjb2Nrc3Vja2VyfGNvY2t3b21ibGV8Y3JhcHxjcmFwcHl8Y3JvdGNofGN1bnR8Y3VudHN8ZGlja2ZhY2V8ZGlj"
+    "a2hlYWR8ZGlja3dhZHxkaWNrd2VlZHxkaXBzaGl0fGRvdWNoZXxkb3VjaGViYWd8ZG91Y2hlYmFnZ2VyeXxkdW1iYXNzfGZ1Y2t8ZnVj"
+    "a2VkfGZ1Y2tlcnxmdWNrZmFjZXxmdWNraGVhZHxmdWNraW58ZnVja2luZ3xmdWNrc3xmdWNrdXB8ZnVja3dpdHxob3JzZXNoaXR8amFj"
+    "a2Fzc3xtb3RoZXJmdWNrfG1vdGhlcmZ1Y2tlcnxtb3RoZXJmdWNraW5nfG5pbmNvbXBvb3B8bnVtYm51dHN8cGlzc2VkfHBpc3NoZWFk"
+    "fHBpc3Npbmd8cGlzc29mZnxwcmlja3xwcmlja3N8c2hpdHxzaGl0c3xzaGl0c3Rvcm18c2hpdHRlZHxzaGl0dGluZ3xzaGl0dHl8c2th"
+    "bmt8c2thbmt5fHNsYWd8c2xhZ3N8c21hcnRhc3N8dG9zc2VyfHRvc3NlcnN8dHdhdHx0d2F0c3x0d2F0d2FmZmxlc3x3YW5rZXJ8d2Fu"
+    "a2Vyc3x3YW5raW5nfHdob3JlfHdob3JlaG91c2V8d2hvcmVz"
+)
+_RELIGIOUS_WORDS_B64 = (
+    "Y2hyaXNzYWtlfGNocmlzdHxjaHJpc3RzYWtlfGRhbW1pdHxkYW1ufGRhbW5lZHxkYW1uaXR8Z29kfGdvZGF3ZnVsfGdvZGRhbXxnb2Rk"
+    "YW1taXR8Z29kZGFtbnxnb2RkYW1uZWR8Z29kZGFtbml0fGdvZGZvcnNha2VufGhlbGx8aG9seWNyYXB8aG9seWhlbGx8aG9seXNoaXR8"
+    "amVzdXN8amVzdXNjaHJpc3R8amVzdXNmfGxvcmR8c29ub2ZhfHNvbm9mYWJpdGNofHNvbm9mYWd1bnxzd2VldGplc3Vz"
+)
+
+CURSE_WORDS = _decode_word_blob(_CURSE_WORDS_B64)
+RELIGIOUS_WORDS = _decode_word_blob(_RELIGIOUS_WORDS_B64)
+
+def obfuscate_word(word):
+    """Mask most alphabetic characters while keeping punctuation intact."""
+    chars = list(word)
+    alpha_positions = [idx for idx, ch in enumerate(chars) if ch.isalpha()]
+    if not alpha_positions:
+        return word
+    if len(alpha_positions) == 1:
+        chars[alpha_positions[0]] = "*"
+        return "".join(chars)
+    if len(alpha_positions) == 2:
+        chars[alpha_positions[1]] = "*"
+        return "".join(chars)
+    for idx in alpha_positions[1:-1]:
+        chars[idx] = "*"
+    return "".join(chars)
 
 # ── Colors ──────────────────────────────────────────────────────────────────
 
@@ -581,7 +597,7 @@ class App(ctk.CTk):
 
         self.after(0, self._log, f"▶ {len(found)} word(s) found")
         for word, s, e in found:
-            self.after(0, self._log, f"  [{s:.1f}s – {e:.1f}s]  \"{word}\"")
+            self.after(0, self._log, f"  [{s:.1f}s – {e:.1f}s]  \"{obfuscate_word(word)}\"")
 
         # Apply effect
         mode = self.mode_var.get()
@@ -703,7 +719,8 @@ class App(ctk.CTk):
                 ss_s = int(start % 60)
                 mm_e = int(end // 60)
                 ss_e = int(end % 60)
-                lines.append(f'  {i:>3}.  [{mm_s:02d}:{ss_s:02d} - {mm_e:02d}:{ss_e:02d}]  "{word}"')
+                safe_word = obfuscate_word(word)
+                lines.append(f'  {i:>3}.  [{mm_s:02d}:{ss_s:02d} - {mm_e:02d}:{ss_e:02d}]  "{safe_word}"')
 
             lines.append("")
             lines.append("=" * 60)
@@ -730,7 +747,8 @@ class App(ctk.CTk):
                         for w in words_in_seg:
                             clean = "".join(c for c in w.lower() if c.isalpha())
                             is_bad = any(clean == b or clean.startswith(b) for b in bad)
-                            marked.append(f"[{w.upper()}]" if is_bad else w)
+                            masked = obfuscate_word(w).upper()
+                            marked.append(f"[{masked}]" if is_bad else w)
                         lines.append(f"  [{mm:02d}:{ss:02d}]  {' '.join(marked)}")
                     lines.append("")
             except Exception:
